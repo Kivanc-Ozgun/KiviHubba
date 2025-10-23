@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Araba Kaçış Oyunu</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="startScreen">
+    <h1>🚗 Araba Kaçış Oyunu</h1>
+    <p>Zorluk Seç:</p>
+    <button onclick="startGame('easy')">Kolay</button>
+    <button onclick="startGame('medium')">Orta</button>
+    <button onclick="startGame('hard')">Zor</button>
+  </div>
+
+  <div id="scoreDisplay">Skor: 0</div>
+
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+  <div id="gameOverScreen">
+    <h1>💥 GAME OVER 💥</h1>
+    <p id="finalScore"></p>
+    <button onclick="restartGame()">Yeniden Başla</button>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
