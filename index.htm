@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>"Kivi"Hub</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#131c2e;
+      --accent:#06b6d4;
+      --muted:#94a3b8;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:Inter,Segoe UI,Roboto,Arial;
+      background:linear-gradient(180deg,#071026 0%, #071b2b 100%);
+      color:#e6eef6;
+      padding:30px;
+    }
+    h1{text-align:center;margin-bottom:20px;font-size:26px}
+    .games{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+      gap:16px;
+      max-width:1200px;
+      margin:0 auto;
+    }
+    .game-card{
+      background:var(--card);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:12px;
+      padding:10px;
+      cursor:pointer;
+      transition:all .2s;
+      display:flex;
+      flex-direction:column;
+      text-align:center;
+    }
+    .game-card:hover{
+      transform:translateY(-3px);
+      border-color:var(--accent);
+    }
+    .thumb{
+      width:100%;
+      height:140px;
+      background:#091426;
+      border-radius:8px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--muted);
+      overflow:hidden;
+      margin-bottom:8px;
+      font-size:13px;
+    }
+    .game-card img{
+      width:100%;height:100%;object-fit:cover;
+    }
+    .title{
+      font-weight:600;
+      font-size:15px;
+      margin-bottom:4px;
+    }
+    .desc{
+      font-size:13px;
+      color:var(--muted);
+    }
+    footer{
+      text-align:center;
+      margin-top:30px;
+      font-size:13px;
+      color:var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <h1>"Kivi"Hub</h1>
+  <div class="games" id="gamesList"></div>
+
+
+  <script>
+    // 🔧 Buradan oyunlarını ekle
+    const GAMES = [
+      { title: 'Büyük Testere', desc: 'Üzerine gelen sivri şeylerden kaç.', src: 'games/koca_testere/index.htm', thumb:'games/koca_testere/testere.png' },
+      { title: 'Araba Oyunu', desc: 'Arabayla İlerle', src: 'games/araba oyunu/index.htm', thumb: 'games/araba oyunu/player.png' },
+      { title: 'Giden Ucan Her Şeyi Yapan Top', desc: 'Herşeyi Yapıyo Koşş', src: 'games/zıplayan top/index.htm', thumb: '' },
+    ];
+
+    const list = document.getElementById('gamesList');
+
+    GAMES.forEach(g=>{
+      const card=document.createElement('div');
+      card.className='game-card';
+      card.addEventListener('click',()=>window.open(g.src,'_blank'));
+
+      const thumb=document.createElement('div');
+      thumb.className='thumb';
+      if(g.thumb){
+        const img=document.createElement('img');
+        img.src=g.thumb;
+        thumb.appendChild(img);
+      }else{
+        thumb.textContent='Önizleme Yok';
+      }
+
+      const title=document.createElement('div');
+      title.className='title';
+      title.textContent=g.title;
+
+      const desc=document.createElement('div');
+      desc.className='desc';
+      desc.textContent=g.desc;
+
+      card.appendChild(thumb);
+      card.appendChild(title);
+      card.appendChild(desc);
+      list.appendChild(card);
+    });
+  </script>
+</body>
+</html>
