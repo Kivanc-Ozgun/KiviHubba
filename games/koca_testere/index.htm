@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ölüm Çemberi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+        }
+
+        canvas {
+            display: block;
+            background: linear-gradient(180deg, #0f3460 0%, #1a1a2e 100%);
+            border: 3px solid #e94560;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            border: 3px solid #e94560;
+        }
+
+        #gameOver h1 {
+            color: #e94560;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #e94560;
+        }
+
+        #gameOver p {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+
+        #restartBtn {
+            background: #e94560;
+            color: #fff;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        #restartBtn:hover {
+            background: #ff6b7a;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #e94560;
+        }
+
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        #score {
+            font-size: 32px;
+            font-weight: bold;
+            color: #00d9ff;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="info">
+            <div id="score">Skor: 0</div>
+            <div style="margin-top: 10px; font-size: 14px;">Yön tuşlarıyla hareket et</div>
+        </div>
+        <div id="gameOver">
+            <h1>OYUN BİTTİ!</h1>
+            <p id="finalScore">Skorunuz: 0</p>
+            <button id="restartBtn">Tekrar Oyna</button>
+        </div>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const gameOverDiv = document.getElementById('gameOver');
+const scoreDiv = document.getElementById('score');
+const finalScoreP = document.getElementById('finalScore');
+const restartBtn = document.getElementById('restartBtn');
+
+// Oyun değişkenleri
+let gameRunning = false;
+let score = 0;
+let startTime = 0;
+let lastObstacleTime = 0;
+let obstacleInterval = 2000;
+let minObstacleInterval = 500;
+
+// Oyuncu objesi
+const player = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    radius: 15,
+    speed: 5,
+    color: '#00d9ff',
+    dx: 0,
+    dy: 0
+};
+
+// Dash sistemi
+let canDash = true;
+let isDashing = false;
+let dashSpeed = 20;
+let dashDuration = 150; // ms
+let dashCooldown = 5000; // 5 sn
+let lastDashTime = 0;
+
+// Engeller dizisi
+let obstacles = [];
+
+// Tuş kontrolleri
+const keys = {};
+
+// Event listeners
+document.addEventListener('keydown', (e) => {
+    keys[e.key] = true;
+
+    // Dash tuşu (boşluk)
+    if (e.key === ' ' && canDash && !isDashing) {
+        performDash();
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    keys[e.key] = false;
+});
+
+restartBtn.addEventListener('click', resetGame);
+
+// Dash işlemi
+function performDash() {
+    isDashing = true;
+    canDash = false;
+    lastDashTime = Date.now();
+
+    // Dash yönünü mevcut hareket yönünden al
+    let dirX = 0;
+    let dirY = 0;
+    if (keys['ArrowUp'] || keys['w']) dirY = -1;
+    if (keys['ArrowDown'] || keys['s']) dirY = 1;
+    if (keys['ArrowLeft'] || keys['a']) dirX = -1;
+    if (keys['ArrowRight'] || keys['d']) dirX = 1;
+
+    // Eğer hiç yön basılmadıysa, son hareket yönünü koru
+    if (dirX === 0 && dirY === 0) {
+        dirX = player.dx;
+        dirY = player.dy;
+    }
+
+    const length = Math.sqrt(dirX * dirX + dirY * dirY);
+    if (length !== 0) {
+        dirX /= length;
+        dirY /= length;
+    }
+
+    const dashX = dirX * dashSpeed;
+    const dashY = dirY * dashSpeed;
+
+    // Dash süresince hızlı hareket
+    const dashStart = Date.now();
+    const dashInterval = setInterval(() => {
+        const elapsed = Date.now() - dashStart;
+        if (elapsed > dashDuration) {
+            clearInterval(dashInterval);
+            isDashing = false;
+        } else {
+            player.x += dashX;
+            player.y += dashY;
+            // Kenar sınırı
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+        }
+    }, 16);
+
+    // Dash cooldown
+    setTimeout(() => {
+        canDash = true;
+    }, dashCooldown);
+}
+
+// Engel oluştur
+function createObstacle() {
+    const size = 40 + Math.random() * 30;
+    const speed = 3 + (score / 10);
+
+    const side = Math.floor(Math.random() * 4);
+    let x, y, dx, dy;
+
+    switch (side) {
+        case 0:
+            x = Math.random() * canvas.width;
+            y = -size;
+            dx = (Math.random() - 0.5) * speed;
+            dy = speed;
+            break;
+        case 1:
+            x = canvas.width + size;
+            y = Math.random() * canvas.height;
+            dx = -speed;
+            dy = (Math.random() - 0.5) * speed;
+            break;
+        case 2:
+            x = Math.random() * canvas.width;
+            y = canvas.height + size;
+            dx = (Math.random() - 0.5) * speed;
+            dy = -speed;
+            break;
+        case 3:
+            x = -size;
+            y = Math.random() * canvas.height;
+            dx = speed;
+            dy = (Math.random() - 0.5) * speed;
+            break;
+    }
+
+    obstacles.push({
+        x: x,
+        y: y,
+        size: size,
+        dx: dx,
+        dy: dy,
+        rotation: 0,
+        rotationSpeed: 0.05 + Math.random() * 0.1
+    });
+}
+
+// Oyuncu hareket
+function movePlayer() {
+    if (isDashing) return; // Dash sırasında manuel hareket kapalı
+
+    player.dx = 0;
+    player.dy = 0;
+
+    if (keys['ArrowUp'] || keys['w']) player.dy = -player.speed;
+    if (keys['ArrowDown'] || keys['s']) player.dy = player.speed;
+    if (keys['ArrowLeft'] || keys['a']) player.dx = -player.speed;
+    if (keys['ArrowRight'] || keys['d']) player.dx = player.speed;
+
+    player.x += player.dx;
+    player.y += player.dy;
+
+    player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+    player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+}
+
+// Engelleri hareket ettir
+function moveObstacles() {
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.x += obs.dx;
+        obs.y += obs.dy;
+        obs.rotation += obs.rotationSpeed;
+
+        if (
+            obs.x < -obs.size * 2 ||
+            obs.x > canvas.width + obs.size * 2 ||
+            obs.y < -obs.size * 2 ||
+            obs.y > canvas.height + obs.size * 2
+        ) {
+            obstacles.splice(i, 1);
+        }
+    }
+}
+
+// Çarpışma kontrolü
+function checkCollision() {
+    for (let obs of obstacles) {
+        const dist = Math.sqrt(Math.pow(player.x - obs.x, 2) + Math.pow(player.y - obs.y, 2));
+        const collisionDist = player.radius + obs.size / 2;
+        if (dist < collisionDist) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Oyuncu çiz
+function drawPlayer() {
+    ctx.save();
+
+    // Dash efekti
+    if (isDashing) {
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = '#ffffff';
+        ctx.fillStyle = '#ffffff';
+    } else {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = player.color;
+        ctx.fillStyle = player.color;
+    }
+
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Cooldown göstergesi
+    if (!canDash) {
+        const elapsed = Date.now() - lastDashTime;
+        const ratio = Math.min(elapsed / dashCooldown, 1);
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius + 6, -Math.PI / 2, (-Math.PI / 2) + (ratio * Math.PI * 2));
+        ctx.strokeStyle = "rgba(255,255,255,0.4)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+}
+
+// Engelleri çiz
+function drawObstacles() {
+    for (let obs of obstacles) {
+        ctx.save();
+        ctx.translate(obs.x, obs.y);
+        ctx.rotate(obs.rotation);
+
+        ctx.fillStyle = '#e94560';
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#e94560';
+
+        const teeth = 12;
+        ctx.beginPath();
+        for (let i = 0; i < teeth; i++) {
+            const angle = (i / teeth) * Math.PI * 2;
+            const nextAngle = ((i + 1) / teeth) * Math.PI * 2;
+            const outerRadius = obs.size / 2;
+            const innerRadius = obs.size / 2.5;
+
+            if (i === 0) {
+                ctx.moveTo(Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius);
+            }
+
+            ctx.lineTo(Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius);
+            ctx.lineTo(
+                Math.cos(angle + (nextAngle - angle) / 2) * innerRadius,
+                Math.sin(angle + (nextAngle - angle) / 2) * innerRadius
+            );
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, obs.size / 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+// Arka plan çiz
+function drawBackground() {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i < canvas.width; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
+    }
+
+    for (let i = 0; i < canvas.height; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(canvas.width, i);
+        ctx.stroke();
+    }
+}
+
+// Oyunu güncelle
+function update() {
+    if (!gameRunning) return;
+
+    const currentTime = Date.now();
+
+    score = Math.floor((currentTime - startTime) / 1000);
+    scoreDiv.textContent = `Skor: ${score}`;
+
+    obstacleInterval = Math.max(minObstacleInterval, 2000 - score * 30);
+
+    if (currentTime - lastObstacleTime > obstacleInterval) {
+        createObstacle();
+        lastObstacleTime = currentTime;
+    }
+
+    movePlayer();
+    moveObstacles();
+
+    if (checkCollision()) {
+        endGame();
+        return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBackground();
+    drawObstacles();
+    drawPlayer();
+
+    requestAnimationFrame(update);
+}
+
+// Oyunu başlat
+function startGame() {
+    gameRunning = true;
+    score = 0;
+    startTime = Date.now();
+    lastObstacleTime = Date.now();
+    obstacles = [];
+    player.x = canvas.width / 2;
+    player.y = canvas.height / 2;
+    gameOverDiv.style.display = 'none';
+    update();
+}
+
+// Oyunu bitir
+function endGame() {
+    gameRunning = false;
+    finalScoreP.textContent = `Skorunuz: ${score} saniye`;
+    gameOverDiv.style.display = 'block';
+}
+
+// Oyunu sıfırla
+function resetGame() {
+    startGame();
+}
+
+// Oyunu başlat
+startGame();
+</script>
+s
+</body>
+</html>
