@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dinamik Top Sıçrayışı (Dokunmatik)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Poppins', sans-serif;
+            color: white;
+            background-color: #000;
+            transition: background-color 1s ease;
+        }
+        canvas {
+            display: none;
+        }
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+        .hidden {
+            display: none;
+        }
+        h1 {
+            font-size: 3em;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px #0ff;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { text-shadow: 0 0 10px #0ff; }
+            50% { text-shadow: 0 0 20px #0ff, 0 0 30px #0ff; }
+            100% { text-shadow: 0 0 10px #0ff; }
+        }
+        h2 {
+            font-size: 2em;
+            text-shadow: 0 0 5px #0ff;
+        }
+        p {
+            font-size: 1.2em;
+            margin: 10px 0;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 1.5em;
+            border: none;
+            background-color: #0ff;
+            color: #000;
+            cursor: pointer;
+            margin-top: 20px;
+            border-radius: 8px;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            box-shadow: 0 5px 15px rgba(0, 255, 255, 0.4);
+        }
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 255, 255, 0.6);
+        }
+        #uiContainer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 5;
+            text-shadow: 0 0 5px #0ff;
+        }
+        #scoreDisplay {
+            font-size: 2em;
+            font-weight: bold;
+            color: #fff;
+        }
+        #powerupStatus {
+            font-size: 1em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        #pauseButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            font-size: 1.2em;
+            z-index: 5;
+            background-color: rgba(0, 255, 255, 0.2);
+            color: #fff;
+            border: 2px solid #0ff;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        #pauseButton:hover {
+            background-color: rgba(0, 255, 255, 0.4);
+        }
+        #leaderboardList {
+            list-style: none;
+            padding: 0;
+            text-align: left;
+            width: 80%;
+            max-width: 600px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #0ff;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        #leaderboardList li {
+            padding: 10px 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #leaderboardList li:last-child {
+            border-bottom: none;
+        }
+        #howToPlayScreen {
+            padding: 20px;
+        }
+        #howToPlayScreen ul {
+            text-align: left;
+            margin-top: 20px;
+            list-style-type: none;
+        }
+        #howToPlayScreen li {
+            margin-bottom: 15px;
+            padding-left: 20px;
+            position: relative;
+        }
+        #howToPlayScreen li::before {
+            content: '👉';
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="uiContainer" class="hidden">
+        <div id="scoreDisplay">Skor: 0</div>
+        <div id="powerupStatus"></div>
+    </div>
+    <div id="pauseButton" class="hidden">Duraklat</div>
+    
+    <div id="mainMenu" class="screen">
+        <h1>Dinamik Blok Sıçrayışı</h1>
+        <button id="playButton">Oyna</button>
+        <button id="howToPlayButton">Nasıl Oynanır?</button>
+        <button id="leaderboardButton">Liderlik Tablosu</button>
+    </div>
+
+    <div id="howToPlayScreen" class="screen hidden">
+        <h2>Nasıl Oynanır?</h2>
+        <p>Amacın, engellere çarpmadan ilerlemek ve en yüksek skoru elde etmek!</p>
+        <ul>
+            <li><p><b>Hareket:</b> 'A' ve 'D' tuşları ile sola ve sağa hareket et veya mobil cihazlarda ekranın sol ve sağına dokun.</p></li>
+            <li><p><b>Engeller:</b> Pink renkli engellere dikkat et!</p></li>
+            <li><p><b>Yeni Engeller:</b> Kırmızı (dönen), Yeşil (uzun) ve sarı (hareketli) engellere dikkat et!</p></li>
+            <li><p><b>Güçlendiriciler:</b> Mavi, turuncu, mor ve pembe renkli güçlendiricileri toplayarak ekstra hız, puan, kalkan veya mıknatıs kazan.</p></li>
+            <li><p><b>Kristaller:</b> Nadir çıkan sarı kristalleri toplayarak yüksek puanlar elde et!</p></li>
+            <li><p><b>Duraklatma:</b> Oyunu duraklatmak için 'P' tuşuna bas.</p></li>
+        </ul>
+        <button id="backFromHowToPlay">Ana Menü</button>
+    </div>
+
+    <div id="leaderboardScreen" class="screen hidden">
+        <h2>Liderlik Tablosu</h2>
+        <ul id="leaderboardList"></ul>
+        <button id="backToMenuButton">Ana Menü</button>
+    </div>
+    
+    <div id="pauseScreen" class="screen hidden">
+        <h1>Oyun Duraklatıldı</h1>
+        <p>Devam etmek için "P" tuşuna basın veya butona tıklayın.</p>
+        <button id="resumeButton">Devam Et</button>
+    </div>
+
+    <div id="gameOverScreen" class="screen hidden">
+        <h1>Oyun Bitti</h1>
+        <p>Skorun: <span id="finalScore">0</span></p>
+        <button id="restartButton">Yeniden Oyna</button>
+        <button id="backToMainMenuButton">Ana Menüye Dön</button>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.7.58/build/Tone.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        const gameCanvas = renderer.domElement;
+        document.body.appendChild(gameCanvas);
+
+        const synth = new Tone.Synth().toDestination();
+        const crashSynth = new Tone.MembraneSynth().toDestination();
+        const powerupSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+        const pointSynth = new Tone.PluckSynth().toDestination();
+        
+        const mainMenu = document.getElementById('mainMenu');
+        const howToPlayScreen = document.getElementById('howToPlayScreen');
+        const leaderboardScreen = document.getElementById('leaderboardScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const pauseScreen = document.getElementById('pauseScreen');
+        const playButton = document.getElementById('playButton');
+        const howToPlayButton = document.getElementById('howToPlayButton');
+        const backFromHowToPlay = document.getElementById('backFromHowToPlay');
+        const leaderboardButton = document.getElementById('leaderboardButton');
+        const backToMenuButton = document.getElementById('backToMenuButton');
+        const restartButton = document.getElementById('restartButton');
+        const backToMainMenuButton = document.getElementById('backToMainMenuButton');
+        const uiContainer = document.getElementById('uiContainer');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const powerupStatus = document.getElementById('powerupStatus');
+        const pauseButton = document.getElementById('pauseButton');
+        const resumeButton = document.getElementById('resumeButton');
+        const finalScoreSpan = document.getElementById('finalScore');
+        
+        let player;
+        let blocks = [];
+        let score = 0;
+        let gameSpeed = 1.0;
+        let gameRunning = false;
+        let gamePaused = false;
+        let isInvincible = false;
+        let isMagnetActive = false;
+        let keys = {};
+        const playerZ = -10;
+        const pathWidth = 10;
+        const blockShapes = ['box', 'sphere', 'cylinder'];
+        const glitchDuration = 200;
+        let backgroundParticles;
+        let activePowerupColor = null;
+
+        let yVelocity = 0;
+        const gravity = 0;
+
+        const powerupTypes = ['speedBoost', 'scoreBoost', 'invincibility', 'magnet'];
+        let scoreMultiplier = 1;
+        let powerupTimeout = null;
+        let cameraShakeIntensity = 0;
+        
+        function createPlayer() {
+            const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const p = new THREE.Mesh(geometry, material);
+            p.position.set(0, 0.5, playerZ);
+            scene.add(p);
+            return p;
+        }
+
+        function createGround() {
+            const geometry = new THREE.PlaneGeometry(pathWidth, 2000);
+            const material = new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide });
+            const ground = new THREE.Mesh(geometry, material);
+            ground.rotation.x = Math.PI / 2;
+            ground.position.y = 0;
+            scene.add(ground);
+        }
+        
+        function createNeonStrip(xPos, color) {
+            const geometry = new THREE.PlaneGeometry(0.2, 2000);
+            const material = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, emissive: color, emissiveIntensity: 2 });
+            const strip = new THREE.Mesh(geometry, material);
+            strip.rotation.x = Math.PI / 2;
+            strip.position.set(xPos, 0.01, -1000);
+            scene.add(strip);
+            return strip;
+        }
+
+        class Block {
+            constructor(zPos, shape, type = 'obstacle') {
+                this.type = type;
+                let geometry;
+                let material;
+                
+                if (this.type === 'powerup') {
+                    this.powerupType = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
+                    let powerupColor;
+                    switch (this.powerupType) {
+                        case 'speedBoost':
+                            powerupColor = 0x00aaff;
+                            break;
+                        case 'scoreBoost':
+                            powerupColor = 0xffa500;
+                            break;
+                        case 'invincibility':
+                            powerupColor = 0x9900ff;
+                            break;
+                        case 'magnet':
+                            powerupColor = 0xff69b4; // Pembe
+                            break;
+                    }
+                    geometry = new THREE.TorusGeometry(0.5, 0.2, 16, 100);
+                    material = new THREE.MeshBasicMaterial({ color: powerupColor, wireframe: false, transparent: true, opacity: 0.8 });
+                } else if (this.type === 'glitchObstacle') {
+                    geometry = new THREE.BoxGeometry(2, 2, 2);
+                    material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, emissive: 0x00ff00, emissiveIntensity: 1 });
+                    this.isGlitched = false;
+                    this.glitchTimer = 0;
+                } else if (this.type === 'point') {
+                    geometry = new THREE.IcosahedronGeometry(0.5, 0); 
+                    material = new THREE.MeshBasicMaterial({ color: 0xffff00, emissive: 0xffff00, emissiveIntensity: 2 });
+                } else if (this.type === 'rotatingObstacle') {
+                    geometry = new THREE.BoxGeometry(2, 2, 2);
+                    material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, emissive: 0xff0000, emissiveIntensity: 1 });
+                } else if (this.type === 'tallObstacle') {
+                    geometry = new THREE.BoxGeometry(1, 4, 1);
+                    material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, emissive: 0x00ff00, emissiveIntensity: 1 });
+                } else if (this.type === 'wideObstacle') {
+                    geometry = new THREE.BoxGeometry(4, 1, 1);
+                    material = new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true, emissive: 0xff00ff, emissiveIntensity: 1 });
+                } else if (this.type === 'movingObstacle') {
+                    geometry = new THREE.BoxGeometry(2, 2, 2);
+                    material = new THREE.MeshBasicMaterial({ color: 0xffa500, wireframe: true, emissive: 0xffa500, emissiveIntensity: 1 });
+                    this.speedX = (Math.random() - 0.5) * 0.1;
+                } else {
+                    this.shape = shape || blockShapes[Math.floor(Math.random() * blockShapes.length)];
+                    switch (this.shape) {
+                        case 'box':
+                            geometry = new THREE.BoxGeometry(2, 2, 2);
+                            break;
+                        case 'sphere':
+                            geometry = new THREE.SphereGeometry(2, 32, 32);
+                            break;
+                        case 'cylinder':
+                            geometry = new THREE.CylinderGeometry(2, 1, 2, 32);
+                            break;
+                    }
+                    material = new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true, emissive: 0xff00ff, emissiveIntensity: 1 });
+                }
+
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.set(Math.random() * pathWidth - pathWidth / 2, 1, zPos);
+            }
+            update() {
+                this.mesh.position.z += gameSpeed;
+                if (this.type === 'rotatingObstacle') {
+                    this.mesh.rotation.x += 0.05;
+                    this.mesh.rotation.y += 0.05;
+                }
+                if (this.type === 'movingObstacle') {
+                    this.mesh.position.x += this.speedX;
+                    if (this.mesh.position.x > pathWidth / 2 || this.mesh.position.x < -pathWidth / 2) {
+                        this.speedX *= -1;
+                    }
+                }
+                if (this.isGlitched) {
+                    this.glitchTimer += 16;
+                    if (this.glitchTimer > glitchDuration) {
+                        this.isGlitched = false;
+                        this.glitchTimer = 0;
+                        this.mesh.scale.set(1, 1, 1);
+                        this.mesh.rotation.set(0, 0, 0);
+                    } else {
+                        this.mesh.position.x += (Math.random() - 0.5) * 0.5;
+                        this.mesh.rotation.y += Math.random() * 0.5;
+                        this.mesh.scale.set(Math.random() * 0.5 + 0.5, Math.random() * 0.5 + 0.5, Math.random() * 0.5 + 0.5);
+                    }
+                }
+            }
+            startGlitch() {
+                this.isGlitched = true;
+            }
+        }
+        
+        function createDistantBlocks() {
+            const blockCount = 50;
+            const material = new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.1, wireframe: true });
+            
+            for (let i = 0; i < blockCount; i++) {
+                const geometry = new THREE.BoxGeometry(Math.random() * 5 + 5, Math.random() * 5 + 5, Math.random() * 5 + 5);
+                const block = new THREE.Mesh(geometry, material);
+                block.position.x = (Math.random() - 0.5) * 200;
+                block.position.y = (Math.random() - 0.5) * 50;
+                block.position.z = -500 - Math.random() * 1500;
+                scene.add(block);
+            }
+        }
+
+        function createBackgroundParticles() {
+            const particleCount = 2000;
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const colors = [];
+            const color = new THREE.Color();
+            const material = new THREE.PointsMaterial({
+                size: 0.5,
+                vertexColors: true,
+                blending: THREE.AdditiveBlending,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            for (let i = 0; i < particleCount; i++) {
+                vertices.push(
+                    (Math.random() - 0.5) * 500,
+                    (Math.random() - 0.5) * 100,
+                    (Math.random() - 0.5) * 2000 - 1000
+                );
+                color.setHSL(Math.random(), 0.8, 0.5);
+                colors.push(color.r, color.g, color.b);
+            }
+
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            backgroundParticles = new THREE.Points(geometry, material);
+            scene.add(backgroundParticles);
+        }
+        
+        function setupGame() {
+            while(scene.children.length > 0){ 
+                scene.remove(scene.children[0]); 
+            }
+            
+            scene.fog = new THREE.Fog(0x000000, 100, 500);
+
+            player = createPlayer();
+            createNeonStrip(-pathWidth / 2, 0x00ff00);
+            createNeonStrip(pathWidth / 2, 0x00ff00);
+            
+            createDistantBlocks();
+            createBackgroundParticles();
+            
+            blocks = [];
+            score = 0;
+            gameSpeed = 1.0;
+            scoreMultiplier = 1;
+            if (powerupTimeout) clearTimeout(powerupTimeout);
+            isInvincible = false;
+            isMagnetActive = false;
+            player.material.opacity = 1.0;
+            activePowerupColor = null;
+            updatePowerupStatus('');
+            scoreDisplay.textContent = 'Skor: 0';
+            document.body.style.backgroundColor = '#000';
+            
+            camera.position.set(0, 5, playerZ + 5);
+            camera.lookAt(player.position);
+            
+            player.position.y = 0.5;
+        }
+
+        function startGame() {
+            mainMenu.classList.add('hidden');
+            howToPlayScreen.classList.add('hidden');
+            leaderboardScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            uiContainer.classList.remove('hidden');
+            pauseButton.classList.remove('hidden');
+            gameCanvas.style.display = 'block';
+            gameRunning = true;
+            gamePaused = false;
+            setupGame();
+            animate();
+            
+            Tone.start();
+        }
+
+        function togglePause() {
+            if (!gameRunning) return;
+
+            gamePaused = !gamePaused;
+            if (gamePaused) {
+                pauseScreen.classList.remove('hidden');
+                gameCanvas.style.display = 'none';
+                Tone.Master.mute = true;
+            } else {
+                pauseScreen.classList.add('hidden');
+                gameCanvas.style.display = 'block';
+                Tone.Master.mute = false;
+                animate();
+            }
+        }
+        
+        function returnToMainMenu() {
+            gameRunning = false;
+            gameOverScreen.classList.add('hidden');
+            mainMenu.classList.remove('hidden');
+            uiContainer.classList.add('hidden');
+            pauseButton.classList.add('hidden');
+            gameCanvas.style.display = 'none';
+        }
+
+        function gameOver() {
+            if (!gameRunning) return;
+
+            gameRunning = false;
+            
+            const originalColor = player.material.color.getHex();
+            let flashCount = 0;
+            const flashInterval = setInterval(() => {
+                player.material.color.setHex(flashCount % 2 === 0 ? 0xff0000 : originalColor);
+                flashCount++;
+                if (flashCount >= 6) {
+                    clearInterval(flashInterval);
+                    player.material.color.setHex(originalColor);
+                    
+                    gameCanvas.style.display = 'none';
+                    uiContainer.classList.add('hidden');
+                    pauseButton.classList.add('hidden');
+                    finalScoreSpan.textContent = score;
+                    gameOverScreen.classList.remove('hidden');
+                    
+                    crashSynth.triggerAttackRelease("C1", "8n");
+                    document.body.style.backgroundColor = '#000';
+                    saveScore(score);
+                }
+            }, 100);
+        }
+
+        function updatePowerupStatus(text, color = '#fff') {
+            powerupStatus.textContent = text;
+            powerupStatus.style.color = color;
+        }
+
+        function saveScore(finalScore) {
+            const scores = JSON.parse(localStorage.getItem('gameScores') || '[]');
+            scores.push(finalScore);
+            scores.sort((a, b) => b - a);
+            localStorage.setItem('gameScores', JSON.stringify(scores.slice(0, 10)));
+        }
+        
+        function showLeaderboard() {
+            mainMenu.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            howToPlayScreen.classList.add('hidden');
+            leaderboardScreen.classList.remove('hidden');
+            
+            const leaderboardList = document.getElementById('leaderboardList');
+            leaderboardList.innerHTML = '';
+            
+            const scores = JSON.parse(localStorage.getItem('gameScores') || '[]');
+            if (scores.length === 0) {
+                leaderboardList.innerHTML = '<li>Henüz skor yok.</li>';
+            } else {
+                scores.forEach((s, index) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span>#${index + 1}</span><span>${s}</span>`;
+                    leaderboardList.appendChild(li);
+                });
+            }
+        }
+
+        function cameraShake(duration, intensity) {
+            cameraShakeIntensity = intensity;
+            setTimeout(() => {
+                cameraShakeIntensity = 0;
+            }, duration);
+        }
+        
+        function animate() {
+            if (!gameRunning || gamePaused) return;
+
+            const movementSpeed = 0.1;
+            const rollingFactor = 0.2;
+
+            if (keys['a'] || keys['A']) {
+                player.position.x = Math.max(-pathWidth / 2, player.position.x - movementSpeed);
+                player.rotation.z += rollingFactor;
+            }
+            if (keys['d'] || keys['D']) {
+                player.position.x = Math.min(pathWidth / 2, player.position.x + movementSpeed);
+                player.rotation.z -= rollingFactor;
+            }
+            
+            player.rotation.x += gameSpeed * 0.05;
+
+            if (blocks.length === 0 || blocks[blocks.length - 1].mesh.position.z > -200) {
+                const zPos = -250;
+                
+                let newBlock;
+                const randomType = Math.random();
+
+                if (randomType < 0.1) {
+                    newBlock = new Block(zPos, null, 'powerup');
+                } else if (randomType < 0.15) {
+                    newBlock = new Block(zPos, null, 'glitchObstacle');
+                } else if (randomType < 0.16) {
+                    newBlock = new Block(zPos, null, 'point');
+                } else if (randomType < 0.40) {
+                    newBlock = new Block(zPos, null, 'rotatingObstacle');
+                } else if (randomType < 0.60) {
+                    newBlock = new Block(zPos, null, 'tallObstacle');
+                } else if (randomType < 0.80) {
+                    newBlock = new Block(zPos, null, 'wideObstacle');
+                } else if (randomType < 0.90) {
+                    newBlock = new Block(zPos, null, 'movingObstacle');
+                } else {
+                    newBlock = new Block(zPos);
+                }
+
+                scene.add(newBlock.mesh);
+                blocks.push(newBlock);
+                score += (10 * scoreMultiplier);
+                gameSpeed += 0.01;
+            }
+            
+            blocks.forEach((block, index) => {
+                block.update();
+
+                const playerBox = new THREE.Box3().setFromObject(player);
+                const blockBox = new THREE.Box3().setFromObject(block.mesh);
+
+                if (block.type === 'glitchObstacle' && block.mesh.position.z > -100 && !block.isGlitched) {
+                    block.startGlitch();
+                }
+
+                if (isMagnetActive && block.type === 'point' && block.mesh.position.distanceTo(player.position) < 10) {
+                    // Pull point towards player
+                    const direction = new THREE.Vector3().subVectors(player.position, block.mesh.position).normalize();
+                    block.mesh.position.add(direction.multiplyScalar(0.5));
+                }
+                
+                if (playerBox.intersectsBox(blockBox)) {
+                    if (block.type === 'obstacle' || block.type === 'glitchObstacle' || block.type === 'rotatingObstacle' || block.type === 'tallObstacle' || block.type === 'wideObstacle' || block.type === 'movingObstacle') {
+                        if (!isInvincible) {
+                             gameOver();
+                             cameraShake(500, 0.5);
+                        } else {
+                            scene.remove(block.mesh);
+                            blocks.splice(index, 1);
+                        }
+                    } else if (block.type === 'powerup') {
+                        powerupSynth.triggerAttackRelease(["C4", "E4", "G4"], "8n");
+                        scene.remove(block.mesh);
+                        blocks.splice(index, 1);
+
+                        if (powerupTimeout) {
+                            clearTimeout(powerupTimeout);
+                        }
+                        gameSpeed = 1.0;
+                        scoreMultiplier = 1;
+                        isInvincible = false;
+                        isMagnetActive = false;
+                        player.material.opacity = 1.0;
+                        document.body.style.backgroundColor = '#000';
+
+
+                        switch (block.powerupType) {
+                            case 'speedBoost':
+                                gameSpeed = Math.min(gameSpeed * 1.5, 5.0);
+                                updatePowerupStatus("HIZLANDIRMA", '#00aaff');
+                                document.body.style.backgroundColor = '#003366';
+                                powerupTimeout = setTimeout(() => {
+                                    gameSpeed = 1.0;
+                                    updatePowerupStatus("");
+                                    document.body.style.backgroundColor = '#000';
+                                }, 5000);
+                                break;
+                            case 'scoreBoost':
+                                scoreMultiplier = 2;
+                                updatePowerupStatus("2X PUAN", '#ffa500');
+                                document.body.style.backgroundColor = '#663300';
+                                powerupTimeout = setTimeout(() => {
+                                    scoreMultiplier = 1;
+                                    updatePowerupStatus("");
+                                    document.body.style.backgroundColor = '#000';
+                                }, 5000);
+                                break;
+                            case 'invincibility':
+                                isInvincible = true;
+                                player.material.opacity = 0.5;
+                                updatePowerupStatus("Kalkan Aktif", '#9900ff');
+                                document.body.style.backgroundColor = '#330066';
+                                powerupTimeout = setTimeout(() => {
+                                    isInvincible = false;
+                                    player.material.opacity = 1.0;
+                                    updatePowerupStatus("");
+                                    document.body.style.backgroundColor = '#000';
+                                }, 5000);
+                                break;
+                            case 'magnet':
+                                isMagnetActive = true;
+                                updatePowerupStatus("Mıknatıs Aktif", '#ff69b4');
+                                document.body.style.backgroundColor = '#660033';
+                                powerupTimeout = setTimeout(() => {
+                                    isMagnetActive = false;
+                                    updatePowerupStatus("");
+                                    document.body.style.backgroundColor = '#000';
+                                }, 5000);
+                                break;
+                        }
+                    } else if (block.type === 'point') {
+                        pointSynth.triggerAttackRelease("C5", "8n");
+                        score += 100 * scoreMultiplier;
+                        scene.remove(block.mesh);
+                        blocks.splice(index, 1);
+                    }
+                }
+
+                if (block.mesh.position.z > camera.position.z) {
+                    scene.remove(block.mesh);
+                    blocks.shift();
+                }
+            });
+            
+            if (backgroundParticles) {
+                backgroundParticles.rotation.z += 0.0005;
+                backgroundParticles.rotation.y += 0.0005;
+            }
+
+            if (cameraShakeIntensity > 0) {
+                camera.position.x = (Math.random() - 0.5) * cameraShakeIntensity;
+                camera.position.y = (Math.random() - 0.5) * cameraShakeIntensity;
+            } else {
+                camera.position.x = 0;
+                camera.position.y = 5;
+            }
+
+            scoreDisplay.textContent = `Skor: ${score}`;
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        
+        function showHowToPlay() {
+            mainMenu.classList.add('hidden');
+            howToPlayScreen.classList.remove('hidden');
+        }
+
+        playButton.addEventListener('click', startGame);
+        howToPlayButton.addEventListener('click', showHowToPlay);
+        backFromHowToPlay.addEventListener('click', () => {
+            howToPlayScreen.classList.add('hidden');
+            mainMenu.classList.remove('hidden');
+        });
+        leaderboardButton.addEventListener('click', showLeaderboard);
+        backToMenuButton.addEventListener('click', () => {
+            leaderboardScreen.classList.add('hidden');
+            mainMenu.classList.remove('hidden');
+        });
+        restartButton.addEventListener('click', () => {
+            gameOverScreen.classList.add('hidden');
+            setupGame();
+            startGame();
+        });
+        backToMainMenuButton.addEventListener('click', returnToMainMenu);
+        pauseButton.addEventListener('click', togglePause);
+        resumeButton.addEventListener('click', togglePause);
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Klavye olayları
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key.toLowerCase() === 'p') {
+                togglePause();
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        // Dokunmatik olayları
+        gameCanvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touchX = e.touches[0].clientX;
+            const screenCenter = window.innerWidth / 2;
+            if (touchX < screenCenter) {
+                keys['a'] = true;
+            } else {
+                keys['d'] = true;
+            }
+        });
+
+        gameCanvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys['a'] = false;
+            keys['d'] = false;
+        });
+    </script>
+</body>
+</html>
